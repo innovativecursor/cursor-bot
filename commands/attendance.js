@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require("discord.js");
 const Attendance = require("../models/Attendance.js");
+const Leave = require("../models/Leave.js");
 const moment = require("moment");
 
 module.exports = {
@@ -28,8 +29,6 @@ module.exports = {
 
     const halvesInput = interaction.options.getString("halves");
     if (halvesInput) {
-      // Example input: "1 0" or "0 1"
-      // const halves = halvesInput.trim().split(/\s+/);
       const halves = halvesInput
         .trim()
         .split(/\s+/)
@@ -55,24 +54,25 @@ module.exports = {
     }
 
     try {
-      // Check if leave exists for today - disallow attendance if leave exists
-      const existingLeave = await require("../models/Leave.js").findOne({
+      const existingLeave = await Leave.findOne({
         userId,
         date: today,
+        halfDay: "full",
       });
+
       if (existingLeave) {
         return interaction.reply({
           content:
-            "❌ You have already applied for leave today. Attendance not allowed.",
+            "❌ You have already applied for full day leave today. Attendance not allowed.",
           ephemeral: true,
         });
       }
 
-      // Check if attendance already exists today
       const existingAttendance = await Attendance.findOne({
         userId,
         date: today,
       });
+
       if (existingAttendance) {
         return interaction.reply({
           content: "You've already marked attendance for today!",
@@ -90,14 +90,40 @@ module.exports = {
         secondHalfPresent,
       });
 
+      // Auto mark leave for absent halves
+      const leaveMessages = [];
+      if (!firstHalfPresent) {
+        await Leave.create({
+          userId,
+          username,
+          displayName,
+          date: today,
+          reason: "Absent for first half",
+          halfDay: "first",
+          createdAt: new Date(),
+        });
+        leaveMessages.push("📝 Leave applied for first half.");
+      }
+
+      if (!secondHalfPresent) {
+        await Leave.create({
+          userId,
+          username,
+          displayName,
+          date: today,
+          reason: "Absent for second half",
+          halfDay: "second",
+          createdAt: new Date(),
+        });
+        leaveMessages.push("📝 Leave applied for second half.");
+      }
+
       const presentHalves = [];
       if (firstHalfPresent) presentHalves.push("First half");
       if (secondHalfPresent) presentHalves.push("Second half");
 
       return interaction.reply({
-        content: `✅ Attendance marked successfully for: ${presentHalves.join(
-          " and "
-        )} today.`,
+        content: `✅ Attendance marked for: ${presentHalves.join(" and ")} today.\n${leaveMessages.join("\n")}`,
       });
     } catch (err) {
       console.error(err);
