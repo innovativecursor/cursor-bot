@@ -15,27 +15,22 @@ module.exports = {
       interaction.member?.nickname ||
       interaction.user.globalName ||
       interaction.user.username;
-    const today = moment().format("YYYY-MM-DD");
+    const date = moment().format("YYYY-MM-DD");
 
     try {
-      const existingLeave = await Leave.findOne({ userId, date: today });
+      const existingLeave = await Leave.findOne({ userId, date });
       if (existingLeave) {
         return interaction.reply({
-          content:
-            "❌ You have already applied for leave today. Attendance not allowed.",
+          content: "❌ You have already applied for leave today. Attendance not allowed.",
           ephemeral: true,
         });
       }
 
-      const existing = await Attendance.findOne({
-        userId,
-        displayName,
-        date: today,
-      });
-
-      if (existing) {
+      const existingAttendance = await Attendance.findOne({ userId, date });
+      if (existingAttendance) {
         return interaction.reply({
           content: "You've already marked attendance for today!",
+          ephemeral: true,
         });
       }
 
@@ -43,8 +38,8 @@ module.exports = {
         userId,
         username,
         displayName,
-        date: today,
-        date: new Date(),
+        date, // Store date consistently as string
+        createdAt: new Date(),
       });
 
       interaction.reply({
@@ -54,6 +49,7 @@ module.exports = {
       console.error(err);
       interaction.reply({
         content: "❌ Failed to mark attendance.",
+        ephemeral: true,
       });
     }
   },
