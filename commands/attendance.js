@@ -29,7 +29,11 @@ module.exports = {
     const halvesInput = interaction.options.getString("halves");
     if (halvesInput) {
       // Example input: "1 0" or "0 1"
-      const halves = halvesInput.trim().split(/\s+/);
+      // const halves = halvesInput.trim().split(/\s+/);
+      const halves = halvesInput
+        .trim()
+        .split(/\s+/)
+        .map((h) => h.trim());
 
       if (halves.length !== 2 || !halves.every((h) => h === "0" || h === "1")) {
         return interaction.reply({
@@ -81,7 +85,7 @@ module.exports = {
         username,
         displayName,
         date: today,
-        createdAt: nowUTC,
+        createdAt: new Date().toISOString(),
         firstHalfPresent,
         secondHalfPresent,
       });
