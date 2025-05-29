@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require("discord.js");
 const Attendance = require("../models/Attendance.js");
+const Leave = require("../models/Leave.js");
 const moment = require("moment");
 
 module.exports = {
@@ -17,6 +18,15 @@ module.exports = {
     const today = moment().format("YYYY-MM-DD");
 
     try {
+      const existingLeave = await Leave.findOne({ userId, date: today });
+      if (existingLeave) {
+        return interaction.reply({
+          content:
+            "❌ You have already applied for leave today. Attendance not allowed.",
+          ephemeral: true,
+        });
+      }
+
       const existing = await Attendance.findOne({
         userId,
         displayName,

@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require("discord.js");
 const Leave = require("../models/Leave.js");
+const Attendance = require("../models/Attendance.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -23,13 +24,22 @@ module.exports = {
       const date = new Date().toISOString().split("T")[0];
       const reason = interaction.options.getString("reason");
 
+      const existingAttendance = await Attendance.findOne({ userId, date });
+      if (existingAttendance) {
+        return interaction.reply({
+          content:
+            "❌ You have already marked attendance today. Leave not allowed.",
+          ephemeral: true,
+        });
+      }
+
       await Leave.create({
         userId,
         username,
-        date,
+        date, // just YYYY-MM-DD
         reason,
         displayName,
-        date: new Date(),
+        createdAt: new Date(), // full timestamp
       });
 
       await interaction.reply(
@@ -39,7 +49,7 @@ module.exports = {
       console.error("Leave command error:", error);
       await interaction.reply({
         content: "❌ Failed to apply for leave.",
-        flags: InteractionResponseFlags.Ephemeral,
+        ephemeral: true,
       });
     }
   },
