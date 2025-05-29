@@ -81,6 +81,7 @@ module.exports = {
         username,
         displayName,
         date: today,
+        createdAt: nowUTC,
         firstHalfPresent,
         secondHalfPresent,
       });
