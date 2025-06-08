@@ -1,7 +1,6 @@
 const { SlashCommandBuilder } = require("discord.js");
 const Attendance = require("../models/Attendance.js");
-const Leave = require("../models/Leave.js");
-const moment = require("moment");
+const moment = require("moment-timezone"); // Make sure this is installed
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -21,9 +20,27 @@ module.exports = {
       interaction.member?.nickname ||
       interaction.user.globalName ||
       interaction.user.username;
-    const today = moment().format("YYYY-MM-DD");
 
-    // Parse halves input
+    // Use India timezone for cutoff and day logic
+    const nowIST = moment().tz("Asia/Kolkata");
+    const today = nowIST.format("YYYY-MM-DD");
+    const currentHour = nowIST.hour();
+
+    const dayOfWeek = nowIST.day(); // 0 (Sunday) to 6 (Saturday)
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      return interaction.reply({
+        content: "❌ Attendance is not allowed on weekends (Saturday or Sunday).",
+        ephemeral: true,
+      });
+    }
+
+    if (currentHour >= 18) {
+      return interaction.reply({
+        content: "❌ Attendance cannot be marked after 6:00 PM IST.",
+        ephemeral: true,
+      });
+    }
+
     let firstHalfPresent = true;
     let secondHalfPresent = true;
 
@@ -54,16 +71,14 @@ module.exports = {
     }
 
     try {
-      const existingLeave = await Leave.findOne({
+      const existingLeave = await require("../models/Leave.js").findOne({
         userId,
         date: today,
-        halfDay: "full",
       });
-
       if (existingLeave) {
         return interaction.reply({
           content:
-            "❌ You have already applied for full day leave today. Attendance not allowed.",
+            "❌ You have already applied for leave today. Attendance not allowed.",
           ephemeral: true,
         });
       }
@@ -72,10 +87,9 @@ module.exports = {
         userId,
         date: today,
       });
-
       if (existingAttendance) {
         return interaction.reply({
-          content: "You've already marked attendance for today!",
+          content: "✅ You've already marked attendance for today.",
           ephemeral: true,
         });
       }
@@ -85,45 +99,19 @@ module.exports = {
         username,
         displayName,
         date: today,
-        createdAt: new Date().toISOString(),
+        createdAt: nowIST.toISOString(),
         firstHalfPresent,
         secondHalfPresent,
       });
-
-      // Auto mark leave for absent halves
-      const leaveMessages = [];
-      if (!firstHalfPresent) {
-        await Leave.create({
-          userId,
-          username,
-          displayName,
-          date: today,
-          reason: "Absent for first half",
-          halfDay: "first",
-          createdAt: new Date(),
-        });
-        leaveMessages.push("📝 Leave applied for first half.");
-      }
-
-      if (!secondHalfPresent) {
-        await Leave.create({
-          userId,
-          username,
-          displayName,
-          date: today,
-          reason: "Absent for second half",
-          halfDay: "second",
-          createdAt: new Date(),
-        });
-        leaveMessages.push("📝 Leave applied for second half.");
-      }
 
       const presentHalves = [];
       if (firstHalfPresent) presentHalves.push("First half");
       if (secondHalfPresent) presentHalves.push("Second half");
 
       return interaction.reply({
-        content: `✅ Attendance marked for: ${presentHalves.join(" and ")} today.\n${leaveMessages.join("\n")}`,
+        content: `✅ Attendance marked successfully for: ${presentHalves.join(
+          " and "
+        )} today.`,
       });
     } catch (err) {
       console.error(err);
