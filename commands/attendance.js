@@ -1,6 +1,8 @@
 const { SlashCommandBuilder } = require("discord.js");
 const Attendance = require("../models/Attendance.js");
-const moment = require("moment-timezone"); // Make sure this is installed
+const Leave = require("../models/Leave.js");
+const User = require("../models/User.js");
+const moment = require("moment-timezone");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -21,12 +23,12 @@ module.exports = {
       interaction.user.globalName ||
       interaction.user.username;
 
-    // Use India timezone for cutoff and day logic
     const nowIST = moment().tz("Asia/Kolkata");
     const today = nowIST.format("YYYY-MM-DD");
     const currentHour = nowIST.hour();
+    const dayOfWeek = nowIST.day();
 
-    const dayOfWeek = nowIST.day(); // 0 (Sunday) to 6 (Saturday)
+    // ❌ Block weekends
     if (dayOfWeek === 0 || dayOfWeek === 6) {
       return interaction.reply({
         content: "❌ Attendance is not allowed on weekends (Saturday or Sunday).",
@@ -34,6 +36,7 @@ module.exports = {
       });
     }
 
+    // ❌ Block after 6 PM
     if (currentHour >= 18) {
       return interaction.reply({
         content: "❌ Attendance cannot be marked after 6:00 PM IST.",
@@ -46,10 +49,7 @@ module.exports = {
 
     const halvesInput = interaction.options.getString("halves");
     if (halvesInput) {
-      const halves = halvesInput
-        .trim()
-        .split(/\s+/)
-        .map((h) => h.trim());
+      const halves = halvesInput.trim().split(/\s+/).map((h) => h.trim());
 
       if (halves.length !== 2 || !halves.every((h) => h === "0" || h === "1")) {
         return interaction.reply({
@@ -71,10 +71,14 @@ module.exports = {
     }
 
     try {
-      const existingLeave = await require("../models/Leave.js").findOne({
-        userId,
-        date: today,
-      });
+      // 🧠 Register user if not exists
+      const existingUser = await User.findOne({ userId });
+      if (!existingUser) {
+        await User.create({ userId, username, displayName });
+      }
+
+      // ❌ Block if leave applied
+      const existingLeave = await Leave.findOne({ userId, date: today });
       if (existingLeave) {
         return interaction.reply({
           content:
@@ -83,10 +87,8 @@ module.exports = {
         });
       }
 
-      const existingAttendance = await Attendance.findOne({
-        userId,
-        date: today,
-      });
+      // ❌ Block if already marked
+      const existingAttendance = await Attendance.findOne({ userId, date: today });
       if (existingAttendance) {
         return interaction.reply({
           content: "✅ You've already marked attendance for today.",
@@ -94,6 +96,7 @@ module.exports = {
         });
       }
 
+      // ✅ Save attendance
       await Attendance.create({
         userId,
         username,
@@ -109,9 +112,7 @@ module.exports = {
       if (secondHalfPresent) presentHalves.push("Second half");
 
       return interaction.reply({
-        content: `✅ Attendance marked successfully for: ${presentHalves.join(
-          " and "
-        )} today.`,
+        content: `✅ Attendance marked successfully for: ${presentHalves.join(" and ")} today.`,
       });
     } catch (err) {
       console.error(err);
