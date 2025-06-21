@@ -8,28 +8,28 @@ const moment = require("moment-timezone");
 const getAllAttendance = async (req, res) => {
   try {
     const { date, userId, page = 1, limit = 50 } = req.query;
-    
+
     let query = {};
-    
+
     // Filter by date if provided
     if (date) {
       query.date = date;
     }
-    
+
     // Filter by userId if provided
     if (userId) {
       query.userId = userId;
     }
-    
+
     const skip = (page - 1) * limit;
-    
+
     const attendance = await Attendance.find(query)
       .sort({ date: -1, createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
-    
+
     const total = await Attendance.countDocuments(query);
-    
+
     res.json({
       success: true,
       data: attendance,
@@ -37,15 +37,15 @@ const getAllAttendance = async (req, res) => {
         page: parseInt(page),
         limit: parseInt(limit),
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error("Error fetching attendance:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch attendance records",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -58,14 +58,14 @@ const markAttendance = async (req, res) => {
       date,
       firstHalfPresent = true,
       secondHalfPresent = true,
-      note = ""
+      note = "",
     } = req.body;
 
     // Validation
     if (!userId || !date) {
       return res.status(400).json({
         success: false,
-        message: "userId and date are required"
+        message: "userId and date are required",
       });
     }
 
@@ -73,7 +73,7 @@ const markAttendance = async (req, res) => {
     if (!moment(date, "YYYY-MM-DD", true).isValid()) {
       return res.status(400).json({
         success: false,
-        message: "Invalid date format. Use YYYY-MM-DD"
+        message: "Invalid date format. Use YYYY-MM-DD",
       });
     }
 
@@ -81,7 +81,8 @@ const markAttendance = async (req, res) => {
     if (!firstHalfPresent && !secondHalfPresent) {
       return res.status(400).json({
         success: false,
-        message: "Cannot mark both halves as absent. Use absence record instead."
+        message:
+          "Cannot mark both halves as absent. Use absence record instead.",
       });
     }
 
@@ -90,7 +91,7 @@ const markAttendance = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: "User not found"
+        message: "User not found",
       });
     }
 
@@ -100,7 +101,7 @@ const markAttendance = async (req, res) => {
       return res.status(409).json({
         success: false,
         message: "Attendance already exists for this user and date",
-        data: existingAttendance
+        data: existingAttendance,
       });
     }
 
@@ -111,17 +112,17 @@ const markAttendance = async (req, res) => {
       if (existingLeave.halfDay === "full") {
         return res.status(409).json({
           success: false,
-          message: "User has full day leave applied for this date"
+          message: "User has full day leave applied for this date",
         });
       } else if (existingLeave.halfDay === "first" && firstHalfPresent) {
         return res.status(409).json({
           success: false,
-          message: "User has first half leave applied for this date"
+          message: "User has first half leave applied for this date",
         });
       } else if (existingLeave.halfDay === "second" && secondHalfPresent) {
         return res.status(409).json({
           success: false,
-          message: "User has second half leave applied for this date"
+          message: "User has second half leave applied for this date",
         });
       }
     }
@@ -136,21 +137,20 @@ const markAttendance = async (req, res) => {
       secondHalfPresent,
       createdAt: moment().tz("Asia/Kolkata").toISOString(),
       markedByHR: true,
-      hrNote: note
+      hrNote: note,
     });
 
     res.status(201).json({
       success: true,
       message: "Attendance marked successfully",
-      data: attendance
+      data: attendance,
     });
-
   } catch (error) {
     console.error("Error marking attendance:", error);
     res.status(500).json({
       success: false,
       message: "Failed to mark attendance",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -159,58 +159,42 @@ const markAttendance = async (req, res) => {
 const updateAttendance = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      firstHalfPresent,
-      secondHalfPresent,
-      note = ""
-    } = req.body;
-
-    // Validation
-    if (firstHalfPresent === undefined && secondHalfPresent === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: "At least one half attendance status must be provided"
-      });
-    }
-
-    // Check if both halves are being marked absent
-    if (firstHalfPresent === false && secondHalfPresent === false) {
-      return res.status(400).json({
-        success: false,
-        message: "Cannot mark both halves as absent"
-      });
-    }
+    const { firstHalfPresent, secondHalfPresent, note = "" } = req.body;
 
     // Find existing attendance
     const attendance = await Attendance.findById(id);
     if (!attendance) {
       return res.status(404).json({
         success: false,
-        message: "Attendance record not found"
+        message: "Attendance record not found",
       });
     }
 
     // Check for conflicting leave if modifying attendance
     const existingLeave = await Leave.findOne({
       userId: attendance.userId,
-      date: attendance.date
+      date: attendance.date,
     });
 
     if (existingLeave) {
       if (existingLeave.halfDay === "first" && firstHalfPresent === true) {
         return res.status(409).json({
           success: false,
-          message: "Cannot mark first half present - user has first half leave"
+          message: "Cannot mark first half present - user has first half leave",
         });
-      } else if (existingLeave.halfDay === "second" && secondHalfPresent === true) {
+      } else if (
+        existingLeave.halfDay === "second" &&
+        secondHalfPresent === true
+      ) {
         return res.status(409).json({
           success: false,
-          message: "Cannot mark second half present - user has second half leave"
+          message:
+            "Cannot mark second half present - user has second half leave",
         });
       } else if (existingLeave.halfDay === "full") {
         return res.status(409).json({
           success: false,
-          message: "Cannot modify attendance - user has full day leave"
+          message: "Cannot modify attendance - user has full day leave",
         });
       }
     }
@@ -219,7 +203,7 @@ const updateAttendance = async (req, res) => {
     const updateData = {
       modifiedAt: moment().tz("Asia/Kolkata").toISOString(),
       modifiedByHR: true,
-      hrNote: note
+      hrNote: note,
     };
 
     if (firstHalfPresent !== undefined) {
@@ -238,15 +222,14 @@ const updateAttendance = async (req, res) => {
     res.json({
       success: true,
       message: "Attendance updated successfully",
-      data: updatedAttendance
+      data: updatedAttendance,
     });
-
   } catch (error) {
     console.error("Error updating attendance:", error);
     res.status(500).json({
       success: false,
       message: "Failed to update attendance",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -260,7 +243,7 @@ const deleteAttendance = async (req, res) => {
     if (!attendance) {
       return res.status(404).json({
         success: false,
-        message: "Attendance record not found"
+        message: "Attendance record not found",
       });
     }
 
@@ -269,15 +252,14 @@ const deleteAttendance = async (req, res) => {
     res.json({
       success: true,
       message: "Attendance record deleted successfully",
-      data: attendance
+      data: attendance,
     });
-
   } catch (error) {
     console.error("Error deleting attendance:", error);
     res.status(500).json({
       success: false,
       message: "Failed to delete attendance record",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -290,7 +272,7 @@ const bulkAttendanceOperation = async (req, res) => {
     if (!operation || !data || !Array.isArray(data)) {
       return res.status(400).json({
         success: false,
-        message: "Operation and data array are required"
+        message: "Operation and data array are required",
       });
     }
 
@@ -301,8 +283,13 @@ const bulkAttendanceOperation = async (req, res) => {
       case "mark":
         for (let item of data) {
           try {
-            const { userId, date, firstHalfPresent = true, secondHalfPresent = true } = item;
-            
+            const {
+              userId,
+              date,
+              firstHalfPresent = true,
+              secondHalfPresent = true,
+            } = item;
+
             // Check if user exists
             const user = await User.findOne({ userId });
             if (!user) {
@@ -326,7 +313,7 @@ const bulkAttendanceOperation = async (req, res) => {
               secondHalfPresent,
               createdAt: moment().tz("Asia/Kolkata").toISOString(),
               markedByHR: true,
-              hrNote: "Bulk operation"
+              hrNote: "Bulk operation",
             });
 
             results.push(attendance);
@@ -355,7 +342,7 @@ const bulkAttendanceOperation = async (req, res) => {
       default:
         return res.status(400).json({
           success: false,
-          message: "Invalid operation. Supported: mark, delete"
+          message: "Invalid operation. Supported: mark, delete",
         });
     }
 
@@ -367,16 +354,15 @@ const bulkAttendanceOperation = async (req, res) => {
       summary: {
         total: data.length,
         successful: results.length,
-        failed: errors.length
-      }
+        failed: errors.length,
+      },
     });
-
   } catch (error) {
     console.error("Error in bulk operation:", error);
     res.status(500).json({
       success: false,
       message: "Bulk operation failed",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -385,17 +371,17 @@ const bulkAttendanceOperation = async (req, res) => {
 const getAllUsers = async (req, res) => {
   try {
     const users = await User.find().sort({ displayName: 1 });
-    
+
     res.json({
       success: true,
-      data: users
+      data: users,
     });
   } catch (error) {
     console.error("Error fetching users:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch users",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -406,5 +392,5 @@ module.exports = {
   updateAttendance,
   deleteAttendance,
   bulkAttendanceOperation,
-  getAllUsers
+  getAllUsers,
 };
