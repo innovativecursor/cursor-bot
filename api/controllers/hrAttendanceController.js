@@ -76,16 +76,6 @@ const markAttendance = async (req, res) => {
         message: "Invalid date format. Use YYYY-MM-DD",
       });
     }
-
-    // Check if both halves are marked absent
-    if (!firstHalfPresent && !secondHalfPresent) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Cannot mark both halves as absent. Use absence record instead.",
-      });
-    }
-
     // Check if user exists
     const user = await User.findById(userId);
     if (!user) {
