@@ -6,7 +6,6 @@ const {
   markAttendance,
   updateAttendance,
   deleteAttendance,
-  bulkAttendanceOperation,
   getAllUsers
 } = require('../controllers/hrAttendanceController');
 
@@ -24,10 +23,6 @@ router.put('/attendance/:id', updateAttendance);
 
 // DELETE /api/hr/attendance/:id - Delete attendance record
 router.delete('/attendance/:id', deleteAttendance);
-
-// POST /api/hr/attendance/bulk - Bulk operations
-// Body: { operation: "mark|delete", data: [...] }
-router.post('/attendance/bulk', bulkAttendanceOperation);
 
 // GET /api/hr/users - Get all users
 router.get('/users', getAllUsers);

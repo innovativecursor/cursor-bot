@@ -87,7 +87,7 @@ const markAttendance = async (req, res) => {
     }
 
     // Check if user exists
-    const user = await User.findOne({ userId });
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -264,109 +264,6 @@ const deleteAttendance = async (req, res) => {
   }
 };
 
-// POST /api/hr/attendance/bulk - Bulk attendance operations
-const bulkAttendanceOperation = async (req, res) => {
-  try {
-    const { operation, data } = req.body;
-
-    if (!operation || !data || !Array.isArray(data)) {
-      return res.status(400).json({
-        success: false,
-        message: "Operation and data array are required",
-      });
-    }
-
-    let results = [];
-    let errors = [];
-
-    switch (operation) {
-      case "mark":
-        for (let item of data) {
-          try {
-            const {
-              userId,
-              date,
-              firstHalfPresent = true,
-              secondHalfPresent = true,
-            } = item;
-
-            // Check if user exists
-            const user = await User.findOne({ userId });
-            if (!user) {
-              errors.push({ userId, error: "User not found" });
-              continue;
-            }
-
-            // Check if attendance already exists
-            const existing = await Attendance.findOne({ userId, date });
-            if (existing) {
-              errors.push({ userId, date, error: "Attendance already exists" });
-              continue;
-            }
-
-            const attendance = await Attendance.create({
-              userId,
-              username: user.username,
-              displayName: user.displayName,
-              date,
-              firstHalfPresent,
-              secondHalfPresent,
-              createdAt: moment().tz("Asia/Kolkata").toISOString(),
-              markedByHR: true,
-              hrNote: "Bulk operation",
-            });
-
-            results.push(attendance);
-          } catch (error) {
-            errors.push({ ...item, error: error.message });
-          }
-        }
-        break;
-
-      case "delete":
-        for (let item of data) {
-          try {
-            const { id } = item;
-            const deleted = await Attendance.findByIdAndDelete(id);
-            if (deleted) {
-              results.push(deleted);
-            } else {
-              errors.push({ id, error: "Attendance not found" });
-            }
-          } catch (error) {
-            errors.push({ ...item, error: error.message });
-          }
-        }
-        break;
-
-      default:
-        return res.status(400).json({
-          success: false,
-          message: "Invalid operation. Supported: mark, delete",
-        });
-    }
-
-    res.json({
-      success: true,
-      message: `Bulk ${operation} operation completed`,
-      results,
-      errors,
-      summary: {
-        total: data.length,
-        successful: results.length,
-        failed: errors.length,
-      },
-    });
-  } catch (error) {
-    console.error("Error in bulk operation:", error);
-    res.status(500).json({
-      success: false,
-      message: "Bulk operation failed",
-      error: error.message,
-    });
-  }
-};
-
 // GET /api/hr/users - Get all users for HR dashboard
 const getAllUsers = async (req, res) => {
   try {
@@ -391,6 +288,5 @@ module.exports = {
   markAttendance,
   updateAttendance,
   deleteAttendance,
-  bulkAttendanceOperation,
   getAllUsers,
 };
