@@ -1,3 +1,4 @@
+require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 const {
@@ -8,9 +9,8 @@ const {
   Routes,
   InteractionResponseFlags,
 } = require("discord.js");
-require("dotenv").config();
 
-const connectDB = require("./db");
+const connectDB = require("./shared/db.js");
 connectDB();
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });

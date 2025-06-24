@@ -10,19 +10,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// MongoDB connection
-mongoose.connect(process.env.MONGODB_URI, {
-  dbName: "attendanceDB",
-});
+const connectDB = require("../shared/db.js")
+connectDB();
 
 // Routes
-const leaveRoutes = require("./routes/leaves");
+const leaveRoutes = require("./routes/leaves.js");
 app.use("/api/leaves", leaveRoutes);
 
-const attendanceRoutes = require("./routes/attendance");
-app.use("/api/attendance", attendanceRoutes);
-
-const hrAttendanceRoutes = require("./routes/hrAttendance");
+const hrAttendanceRoutes = require("./routes/hrAttendance.js");
 app.use("/api/hr", hrAttendanceRoutes);
 
 const PORT = process.env.PORT || 4000;

@@ -1,50 +1,74 @@
 const mongoose = require("mongoose");
 const moment = require("moment-timezone");
-const connectDB = require("../db.js");
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
+
 const Attendance = require("../models/Attendance");
-const Leave = require("../models/Leave");
 const User = require("../models/User");
-require("dotenv").config();
+const Leave = require("../models/Leave");
 
 async function markAbsentees() {
-  await connectDB();
+  const nowIST = moment().tz("Asia/Kolkata");
+  const day = nowIST.day(); // 0 = Sunday, 6 = Saturday
 
-  const today = moment().tz("Asia/Kolkata").format("YYYY-MM-DD");
-  const dayOfWeek = moment().tz("Asia/Kolkata").day();
-
-  if (dayOfWeek === 0 || dayOfWeek === 6) {
-    console.log("Weekend — skipping absentee marking.");
-    return mongoose.disconnect();
+  if (day === 0 || day === 6) {
+    console.log("🛑 It's weekend. Script skipped.");
+    return;
   }
 
-  const users = await User.find();
+  const today = nowIST.format("YYYY-MM-DD");
+  console.log(`📅 Running absentee marking for ${today}`);
 
-  for (const user of users) {
-    const [hasAttendance, hasLeave] = await Promise.all([
-      Attendance.findOne({ userId: user.userId, date: today }),
-      Leave.findOne({ userId: user.userId, date: today }),
-    ]);
+  try {
+    const uri = process.env.MONGODB_URI;
 
-    if (!hasAttendance && !hasLeave) {
+    if (!uri) {
+      console.error("❌ MONGODB_URI is not defined in environment variables.");
+      process.exit(1);
+    }
+
+    await mongoose.connect(uri, { dbName: "attendanceDB" });
+
+    const users = await User.find({ isActive: true });
+
+    for (const user of users) {
+      const { userId, username, displayName } = user;
+
+      const [attendance, leave] = await Promise.all([
+        Attendance.findOne({ userId, date: today }),
+        Leave.findOne({ userId, date: today }),
+      ]);
+
+      if (attendance) {
+        console.log(`✅ ${displayName} already marked attendance.`);
+        continue;
+      }
+
+      if (leave) {
+        console.log(`📌 ${displayName} is on leave (${leave.halfDay}).`);
+        continue;
+      }
+
       await Attendance.create({
-        userId: user.userId,
-        username: user.username,
-        displayName: user.displayName,
+        userId,
+        username,
+        displayName,
         date: today,
-        createdAt: moment().tz("Asia/Kolkata").toISOString(),
         firstHalfPresent: false,
         secondHalfPresent: false,
         autoMarkedAbsent: true,
+        createdAt: nowIST.toISOString(),
       });
-      console.log(`Marked absent: ${user.username}`);
-    }
-  }
 
-  await mongoose.disconnect();
-  console.log("✅ Absentee check completed.");
+      console.log(`❌ ${displayName} marked absent automatically.`);
+    }
+
+    console.log("✅ Auto-absent marking completed.");
+    process.exit(0);
+  } catch (err) {
+    console.error("❌ Error in absentee marking:", err);
+    process.exit(1);
+  }
 }
 
-markAbsentees().catch((err) => {
-  console.error("Error in absentee script:", err);
-  mongoose.disconnect();
-});
+markAbsentees();
