@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Leave = require("../../models/Leave.js");
 
-// GET /api/leaves?userId=...&date=...
+// GET /api/leaves?userId=...&date=...&page=1&limit=50
 router.get("/", async (req, res) => {
   try {
     const { userId, date, page = 1, limit = 50 } = req.query;
@@ -32,9 +32,7 @@ router.get("/", async (req, res) => {
     });
   } catch (err) {
     console.error("Error fetching leaves:", err);
-    res
-      .status(500)
-      .json({ success: false, error: "Failed to fetch leave records." });
+    res.status(500).json({ success: false, error: "Failed to fetch leave records." });
   }
 });
 
@@ -51,9 +49,7 @@ router.post("/", async (req, res) => {
     } = req.body;
 
     if (!userId || !username || !displayName || !date || !reason) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Missing required fields." });
+      return res.status(400).json({ success: false, error: "Missing required fields." });
     }
 
     const existing = await Leave.findOne({
@@ -61,13 +57,12 @@ router.post("/", async (req, res) => {
       date,
       $or: [{ halfDay }, { halfDay: "full" }],
     });
+
     if (existing) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "Leave already exists for this date/half.",
-        });
+      return res.status(400).json({
+        success: false,
+        error: "Leave already exists for this date/half.",
+      });
     }
 
     const leave = await Leave.create({
@@ -92,9 +87,7 @@ router.delete("/:id", async (req, res) => {
   try {
     const deleted = await Leave.findByIdAndDelete(req.params.id);
     if (!deleted) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Leave not found." });
+      return res.status(404).json({ success: false, error: "Leave not found." });
     }
     res.json({ success: true, message: "Leave deleted successfully." });
   } catch (err) {
