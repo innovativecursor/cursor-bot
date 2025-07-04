@@ -6,25 +6,18 @@ require("dotenv").config();
 const app = express();
 
 // ✅ Secure CORS config
-app.use(
-  cors({
-    origin: "https://dashboard.innovativecursor.com",
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allowedHeaders: ["Content-Type"],
-    credentials: false,
-  })
-);
-
-// ✅ Custom Origin Check Middleware
+// ✅ Strict Origin Check for Production
 app.use((req, res, next) => {
   const allowedOrigin = "https://dashboard.innovativecursor.com";
-  const origin = req.get("Origin") || req.get("Referer");
+  const origin = req.get("Origin");
 
-  if (!origin || origin.startsWith(allowedOrigin)) {
-    return next();
+  if (process.env.NODE_ENV === "production") {
+    if (!origin || origin !== allowedOrigin) {
+      return res.status(403).json({ message: "Forbidden: Invalid origin" });
+    }
   }
 
-  return res.status(403).json({ message: "Forbidden: Invalid origin" });
+  next();
 });
 
 // Middleware
